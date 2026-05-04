@@ -1,0 +1,51 @@
+diff --git a/termenv_zos.go b/termenv_zos.go
+new file mode 100644
+index 0000000..0000000
+--- /dev/null
++++ b/termenv_zos.go
+@@ -0,0 +1,45 @@
++//go:build zos
++// +build zos
++
++package termenv
++
++import (
++	"os"
++)
++
++func colorProfile() Profile {
++	term := os.Getenv("TERM")
++	colorTerm := os.Getenv("COLORTERM")
++
++	switch colorTerm {
++	case "truecolor", "24bit", "24-bit":
++		if term != "screen" && term != "tmux" {
++			return TrueColor
++		}
++	}
++
++	switch term {
++	case "xterm-256color", "screen-256color", "tmux-256color":
++		return ANSI256
++	case "xterm", "screen", "tmux":
++		return ANSI
++	}
++
++	return Ascii
++}
++
++func foregroundColor() Color {
++	// z/OS terminal foreground color detection
++	// Default to white if we can't detect
++	return ANSIColor(7) // White
++}
++
++func backgroundColor() Color {
++	// z/OS terminal background color detection
++	// Default to black if we can't detect
++	return ANSIColor(0) // Black
++}
++
++func enableVirtualTerminalProcessing(f *os.File) error {
++	return nil
++}

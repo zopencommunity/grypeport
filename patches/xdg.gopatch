@@ -1,0 +1,101 @@
+diff --git a/internal/pathutil/pathutil_zos.go b/internal/pathutil/pathutil_zos.go
+new file mode 100644
+index 0000000..0000000
+--- /dev/null
++++ b/internal/pathutil/pathutil_zos.go
+@@ -0,0 +1,44 @@
++//go:build zos
++// +build zos
++
++package pathutil
++
++import (
++	"errors"
++	"io/fs"
++	"os"
++	"path/filepath"
++	"strings"
++)
++
++// UserHomeDir returns the home directory of the current user.
++func UserHomeDir() string {
++	if home := os.Getenv("HOME"); home != "" {
++		return home
++	}
++
++	return "/"
++}
++
++// Exists returns true if the specified path exists.
++func Exists(path string) bool {
++	_, err := os.Stat(path)
++	return err == nil || errors.Is(err, fs.ErrExist)
++}
++
++// ExpandHome substitutes `~` and `$HOME` at the start of the specified `path`.
++func ExpandHome(path string) string {
++	home := UserHomeDir()
++	if path == "" || home == "" {
++		return path
++	}
++	if path[0] == '~' {
++		return filepath.Join(home, path[1:])
++	}
++	if strings.HasPrefix(path, "$HOME") {
++		return filepath.Join(home, path[5:])
++	}
++
++	return path
++}
+diff --git a/paths_zos.go b/paths_zos.go
+new file mode 100644
+index 0000000..0000000
+--- /dev/null
++++ b/paths_zos.go
+@@ -0,0 +1,89 @@
++//go:build zos
++// +build zos
++
++package xdg
++
++import (
++	"os"
++	"path/filepath"
++)
++
++func initBaseDirs(home string) {
++	homeAppSupport := filepath.Join(home, ".local", "share")
++	rootAppSupport := "/usr/local/share"
++
++	// Initialize base directories.
++	baseDirs.dataHome = xdgPath(envDataHome, homeAppSupport)
++	baseDirs.data = xdgPaths(envDataDirs, rootAppSupport)
++	baseDirs.configHome = xdgPath(envConfigHome, filepath.Join(home, ".config"))
++	baseDirs.config = xdgPaths(envConfigDirs, "/etc/xdg")
++	baseDirs.cacheHome = xdgPath(envCacheHome, filepath.Join(home, ".cache"))
++	baseDirs.runtime = xdgPath(envRuntimeDir, "/tmp")
++
++	// Initialize non-standard directories.
++	baseDirs.stateHome = xdgPath(envStateHome, filepath.Join(home, ".local", "state"))
++	baseDirs.applications = []string{
++		filepath.Join(baseDirs.dataHome, "applications"),
++		filepath.Join(rootAppSupport, "applications"),
++	}
++	baseDirs.fonts = []string{
++		filepath.Join(baseDirs.dataHome, "fonts"),
++		filepath.Join(home, ".fonts"),
++		filepath.Join(rootAppSupport, "fonts"),
++		"/usr/share/fonts",
++	}
++}
++
++func initUserDirs(home string) {
++	UserDirs.Desktop = xdgPath(envDesktopDir, filepath.Join(home, "Desktop"))
++	UserDirs.Download = xdgPath(envDownloadDir, filepath.Join(home, "Downloads"))
++	UserDirs.Documents = xdgPath(envDocumentsDir, filepath.Join(home, "Documents"))
++	UserDirs.Music = xdgPath(envMusicDir, filepath.Join(home, "Music"))
++	UserDirs.Pictures = xdgPath(envPicturesDir, filepath.Join(home, "Pictures"))
++	UserDirs.Videos = xdgPath(envVideosDir, filepath.Join(home, "Videos"))
++	UserDirs.Templates = xdgPath(envTemplatesDir, filepath.Join(home, "Templates"))
++	UserDirs.PublicShare = xdgPath(envPublicShareDir, filepath.Join(home, "Public"))
++}

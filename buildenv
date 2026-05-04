@@ -1,0 +1,204 @@
+# bump: grype-version /GRYPE_VERSION="(.*)"/ https://github.com/anchore/grype.git|semver:*
+GRYPE_VERSION="0.80.0"
+
+###
+### Build control file for the grype port
+###
+
+###
+### Required Environment Variables
+###
+export ZOPEN_PROJECT_NAME="grype"
+export ZOPEN_BUILD_LINE="STABLE"
+export ZOPEN_STABLE_URL="https://github.com/anchore/grype.git"
+export ZOPEN_STABLE_TAG="v0.80.0"
+export ZOPEN_STABLE_DEPS="make coreutils wharf check_go check_clang sqlite"
+export ZOPEN_DEV_URL=""
+export ZOPEN_DEV_DEPS="check_go"
+export ZOPEN_CATEGORIES="security devops"
+export ZOPEN_RUNTIME_DEPS=""
+# export ZOPEN_SYSTEM_PREREQ="zos25" # optional system pre-req (default=zos25)
+
+
+###
+### Build settings (Port type: BUILD, Build system: Go)
+###
+### Settings for Go build system
+export ZOPEN_COMP=GO
+export ZOPEN_CONFIGURE="zopen_wharf"
+export ZOPEN_CONFIGURE_MINIMAL=1
+export ZOPEN_MAKE="zopen_build"
+export ZOPEN_MAKE_MINIMAL=1
+export ZOPEN_CHECK="skip"
+export ZOPEN_INSTALL="zopen_install"
+export ZOPEN_CLEAN="zopen_clean"
+
+
+###
+### Required user-supplied functions
+###
+
+zopen_check_results() {
+  dir="$1"
+  pfx="$2"
+  chk="$1/$2_check.log"
+  # Add logic to extract the test results here:
+  echo "actualFailures:0"
+  echo "totalTests:1"
+  echo "expectedFailures:0"
+  echo "expectedTotalTests:1"
+}
+
+zopen_get_version() {
+  echo "$GRYPE_VERSION"
+}
+
+
+###
+### Custom Build Logic (if applicable)
+###
+zopen_init() {
+  # Set up clang for CGO compilation
+  export CC=clang
+  export CXX=clang++
+  export CGO_ENABLED=1  # Enable CGO for SQLite support
+}
+
+zopen_wharf() {
+  cd ..
+  rm -rf go.work
+
+  # Clone and patch mmap-go
+  rm -rf mmap-go
+  git clone https://github.com/edsrzf/mmap-go.git
+  cd mmap-go
+  git apply ../patches/mmap-go.gopatch
+  cd ..
+
+  # Clone and patch xdg
+  rm -rf xdg
+  git clone https://github.com/adrg/xdg.git
+  cd xdg
+  git apply ../patches/xdg.gopatch
+  cd ..
+
+  # Clone and patch continuity
+  rm -rf continuity
+  git clone https://github.com/containerd/continuity.git
+  cd continuity
+  git apply ../patches/continuity.gopatch
+  cd ..
+
+  # Clone and patch go-mtree
+  rm -rf go-mtree
+  git clone https://github.com/vbatts/go-mtree.git
+  cd go-mtree
+  git apply ../patches/go-mtree.gopatch
+  cd ..
+
+  # Clone and patch termenv
+  rm -rf termenv
+  git clone https://github.com/muesli/termenv.git
+  cd termenv
+  git apply ../patches/termenv.gopatch
+  cd ..
+
+  # Clone and patch containerd
+  rm -rf containerd
+  git clone https://github.com/containerd/containerd.git
+  cd containerd
+  git apply ../patches/containerd.gopatch
+  cd ..
+
+  # Initialize Go workspace with all modules
+  go work init ./mmap-go ./xdg ./continuity ./go-mtree ./termenv ./containerd ./grype
+  
+  # Run wharf to process dependencies for z/OS
+  wharf ./grype/...
+  
+  cd ./grype
+  go mod tidy
+}
+
+zopen_build() {
+  # Build grype binary with limited parallelism to avoid OOM on z/OS
+  # CGO builds require more memory, so we limit parallel compilation
+  export GOMAXPROCS=1
+  go build -p 1 -o grype ./cmd/grype
+}
+
+zopen_install() {
+  # Copy the built binary to the install directory
+  mkdir -p "${ZOPEN_INSTALL_DIR}/bin"
+  cp grype "${ZOPEN_INSTALL_DIR}/bin/"
+}
+
+zopen_clean() {
+  # Clean up Go workspace artifacts and cloned dependencies
+  cd ..
+  rm -rf go.work go.work.sum .wharf_cache wharf_port
+  rm -rf mmap-go xdg continuity go-mtree termenv
+  cd grype
+}
+
+###
+### Optional User-Supplied Hooks (uncomment to use)
+###
+
+#zopen_append_to_env() {
+#  ## This function runs as part of generation of the .env file. The output of the
+#  ## function is appended to .env.
+#}
+#
+#zopen_append_to_setup(){
+#  ## This function runs as part of generation of the setup.sh file. The output of
+#  ## the function is appended to setup.sh.
+#}
+#
+#zopen_append_to_validate_install(){
+#  ## This function runs as part of generation of the install_test.sh file. The
+#  ## output of the function is appended to install_test.sh script.
+#}
+#
+#zopen_install_caveats(){
+#  ## This function is run post install. All stdout messages are captured and
+#  ## added to the metadata.json as installation caveats.
+#}
+#
+#zopen_init(){
+#  ## This function runs after code is downloaded and patched but before the code
+#  ## is built.
+#}
+#
+#zopen_post_buildenv(){
+#  ## This function runs after the 'buildenv' is processed.
+#}
+#
+#zopen_pre_build(){
+#  ## This function runs before the 'make' step of the build is run.
+#}
+#
+#zopen_pre_check(){
+#  ## This function runs before the 'check' step of the build is run.
+#}
+#
+#zopen_pre_configure(){
+#  ## This function runs before the 'configure' step of the build is run.
+#}
+#
+#zopen_pre_install(){
+#  ## This function runs before the 'install' step of the build is run.
+#}
+#
+#zopen_post_install(){
+#  ## This function runs after the 'install' step of the build is run.
+#}
+#
+#zopen_pre_patch(){
+#  ## This function runs before the 'patch' step of the build is run.
+#}
+#
+#zopen_pre_terminate(){
+#  ## This function runs before 'zopen build' terminates.
+#}
+
