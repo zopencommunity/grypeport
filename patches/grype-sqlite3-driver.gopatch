@@ -59,6 +59,26 @@ index 38b402d..6b06a76 100644
  	"gorm.io/gorm"
  	"gorm.io/gorm/logger"
  
+diff --git a/cmd/grype/sqlite_zos.go b/cmd/grype/sqlite_zos.go
+new file mode 100644
+index 0000000..0000000
+--- /dev/null
++++ b/cmd/grype/sqlite_zos.go
+@@ -0,0 +1,14 @@
++//go:build zos
++
++package main
++
++import (
++	"database/sql"
++
++	"github.com/mattn/go-sqlite3"
++)
++
++func init() {
++	// syft's RPM cataloger opens with "sqlite"; go-sqlite3 registers as "sqlite3" by default.
++	sql.Register("sqlite", &sqlite3.SQLiteDriver{})
++}
 diff --git a/grype/db/v5/store/store.go b/grype/db/v5/store/store.go
 index 51ec6af..e78d4f4 100644
 --- a/grype/db/v5/store/store.go
@@ -66,9 +86,9 @@ index 51ec6af..e78d4f4 100644
 @@ -4,7 +4,7 @@ import (
  	"fmt"
  	"sort"
- 
+
 -	_ "github.com/glebarez/sqlite" // provide the sqlite dialect to gorm via import
 +	_ "github.com/mattn/go-sqlite3" // provide the sqlite dialect to gorm via CGO import
  	"github.com/go-test/deep"
  	"gorm.io/gorm"
- 
+
