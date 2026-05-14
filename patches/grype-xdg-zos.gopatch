@@ -1,6 +1,6 @@
 diff --git a/internal/pathutil/pathutil_zos.go b/internal/pathutil/pathutil_zos.go
 new file mode 100644
-index 0000000..0000000
+index 0000000..e5741e4
 --- /dev/null
 +++ b/internal/pathutil/pathutil_zos.go
 @@ -0,0 +1,38 @@
@@ -44,7 +44,7 @@ index 0000000..0000000
 +}
 diff --git a/paths_zos.go b/paths_zos.go
 new file mode 100644
-index 0000000..0000000
+index 0000000..fc2101a
 --- /dev/null
 +++ b/paths_zos.go
 @@ -0,0 +1,58 @@

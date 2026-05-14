@@ -1,13 +1,13 @@
 diff --git a/mmap_unix.go b/mmap_unix.go
-index 0000000..0000000 100644
+index 25b13e5..75914ac 100644
 --- a/mmap_unix.go
 +++ b/mmap_unix.go
-@@ -1,7 +1,7 @@
- // Copyright 2011 Evan Shaw. All rights reserved.
+@@ -2,7 +2,7 @@
  // Use of this source code is governed by a BSD-style
  // license that can be found in the LICENSE file.
-
+ 
 -// +build darwin dragonfly freebsd linux openbsd solaris netbsd
 +// +build darwin dragonfly freebsd linux openbsd solaris netbsd zos
-
+ 
  package mmap
+ 
