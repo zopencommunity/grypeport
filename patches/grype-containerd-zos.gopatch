@@ -1,9 +1,9 @@
 diff --git a/mount/mount_zos.go b/mount/mount_zos.go
 new file mode 100644
-index 0000000..5a7e9d7
+index 0000000..33c911e
 --- /dev/null
 +++ b/mount/mount_zos.go
-@@ -0,0 +1,46 @@
+@@ -0,0 +1,36 @@
 +//go:build zos
 +
 +/*
@@ -26,27 +26,17 @@ index 0000000..5a7e9d7
 +
 +import "errors"
 +
-+var (
-+	// ErrNotImplementOnZOS is returned for methods that are not implemented on z/OS
-+	ErrNotImplementOnZOS = errors.New("not implemented on z/OS")
-+)
++// ErrNotImplementOnZOS is returned for methods that are not implemented on z/OS
++var ErrNotImplementOnZOS = errors.New("not implemented on z/OS")
 +
-+// Mount is not implemented on z/OS
 +func (m *Mount) mount(target string) error {
 +	return ErrNotImplementOnZOS
 +}
 +
-+// Unmount is not implemented on z/OS
 +func Unmount(mount string, flags int) error {
 +	return ErrNotImplementOnZOS
 +}
 +
-+// UnmountAll is not implemented on z/OS
 +func UnmountAll(mount string, flags int) error {
-+	return ErrNotImplementOnZOS
-+}
-+
-+// UnmountRecursive is not implemented on z/OS
-+func UnmountRecursive(mount string, flags int) error {
 +	return ErrNotImplementOnZOS
 +}
