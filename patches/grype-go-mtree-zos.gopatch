@@ -1,6 +1,6 @@
 diff --git a/lchtimes_zos.go b/lchtimes_zos.go
 new file mode 100644
-index 0000000..fa7d689
+index 0000000..ef30dc9
 --- /dev/null
 +++ b/lchtimes_zos.go
 @@ -0,0 +1,17 @@
@@ -14,10 +14,10 @@ index 0000000..fa7d689
 +	"time"
 +)
 +
-+// lchtimes changes the access and modification times of a file, without following symlinks.
-+// z/OS lacks a native lchtimes, so we fall back to regular utimes.
-+func lchtimes(name string, atime, mtime time.Time) error {
-+	return syscall.Utimes(name, []syscall.Timeval{
-+		{Sec: atime.Unix()}, {Sec: mtime.Unix()},
-+	})
++func lchtimes(name string, atime time.Time, mtime time.Time) error {
++	utimes := [2]syscall.Timeval{
++		{Sec: atime.Unix(), Usec: int64(atime.Nanosecond() / 1000)},
++		{Sec: mtime.Unix(), Usec: int64(mtime.Nanosecond() / 1000)},
++	}
++	return syscall.Utimes(name, utimes[:])
 +}

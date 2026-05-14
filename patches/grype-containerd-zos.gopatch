@@ -1,9 +1,9 @@
-diff --git a/mount/mount_zos.go b/mount/mount_zos.go
+diff --git a/core/mount/mount_zos.go b/core/mount/mount_zos.go
 new file mode 100644
-index 0000000..33c911e
+index 0000000..5674009
 --- /dev/null
-+++ b/mount/mount_zos.go
-@@ -0,0 +1,36 @@
++++ b/core/mount/mount_zos.go
+@@ -0,0 +1,28 @@
 +//go:build zos
 +
 +/*
@@ -32,19 +32,11 @@ index 0000000..33c911e
 +func (m *Mount) mount(target string) error {
 +	return ErrNotImplementOnZOS
 +}
-+
-+func Unmount(mount string, flags int) error {
-+	return ErrNotImplementOnZOS
-+}
-+
-+func UnmountAll(mount string, flags int) error {
-+	return ErrNotImplementOnZOS
-+}
-diff --git a/snapshotter_default_zos.go b/snapshotter_default_zos.go
+diff --git a/defaults/defaults_zos.go b/defaults/defaults_zos.go
 new file mode 100644
-index 0000000..1bd8d92
+index 0000000..ee02f0c
 --- /dev/null
-+++ b/snapshotter_default_zos.go
++++ b/defaults/defaults_zos.go
 @@ -0,0 +1,24 @@
 +//go:build zos
 +
@@ -64,9 +56,9 @@ index 0000000..1bd8d92
 +   limitations under the License.
 +*/
 +
-+package containerd
++package defaults
 +
 +const (
-+	// DefaultSnapshotter will set the default snapshotter for the platform.
-+	DefaultSnapshotter = "native"
++	// DefaultRuntime is the default runtime for z/OS.
++	DefaultRuntime = "io.containerd.native.v1"
 +)

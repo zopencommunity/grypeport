@@ -1,5 +1,5 @@
 # bump: grype-version /GRYPE_VERSION="(.*)"/ https://github.com/anchore/grype.git|semver:*
-GRYPE_VERSION="0.80.0"
+GRYPE_VERSION="0.112.0"
 
 ###
 ### Build control file for the grype port
@@ -84,22 +84,24 @@ zopen_config()
   clone_module "${ZOPEN_STABLE_URL}" grype "v${GRYPE_VERSION}"
   clone_module https://github.com/mattn/go-sqlite3.git go-sqlite3 v1.14.22
   clone_module https://github.com/go-gorm/sqlite.git gorm-sqlite v1.5.6
-  clone_module https://github.com/edsrzf/mmap-go.git mmap-go v1.1.0
-  clone_module https://github.com/adrg/xdg.git xdg v0.5.0
-  clone_module https://github.com/containerd/continuity.git continuity v0.4.2
-  clone_module https://github.com/vbatts/go-mtree.git go-mtree v0.5.4
-  clone_module https://github.com/muesli/termenv.git termenv v0.15.2
-  clone_module https://github.com/containerd/containerd.git containerd v1.7.11
-  clone_module https://github.com/go-git/go-git.git go-git v5.12.0
+  clone_module https://github.com/adrg/xdg.git xdg v0.5.3
+  clone_module https://github.com/containerd/continuity.git continuity v0.4.5
+  clone_module https://github.com/vbatts/go-mtree.git go-mtree v0.7.0
+  clone_module https://github.com/containerd/containerd.git containerd v2.2.2
+  clone_module https://github.com/go-git/go-git.git go-git v5.18.0
+  clone_module https://github.com/moby/sys.git moby-sys user/v0.4.0
+  clone_module https://github.com/diskfs/go-diskfs.git diskfs v1.7.0
+  clone_module https://github.com/gpustack/gguf-parser-go.git gguf-parser v0.24.0
 
   apply_port_patch go-sqlite3 grype-go-sqlite3-zos.gopatch || return 1
-  apply_port_patch mmap-go grype-mmap-go-zos.gopatch || return 1
   apply_port_patch xdg grype-xdg-zos.gopatch || return 1
   apply_port_patch continuity grype-continuity-zos.gopatch || return 1
   apply_port_patch go-mtree grype-go-mtree-zos.gopatch || return 1
-  apply_port_patch termenv grype-termenv-zos.gopatch || return 1
   apply_port_patch containerd grype-containerd-zos.gopatch || return 1
   apply_port_patch go-git grype-go-git-zos.gopatch || return 1
+  apply_port_patch moby-sys grype-moby-sys-user-zos.gopatch || return 1
+  apply_port_patch diskfs grype-diskfs-zos.gopatch || return 1
+  apply_port_patch gguf-parser grype-gguf-zos.gopatch || return 1
   apply_port_patch grype grype-sqlite3-driver.gopatch || return 1
 
   # Create a goz-util wrapper that converts binder rc=4 (warnings-only) to rc=0.
@@ -146,13 +148,14 @@ zopen_config()
   go work init \
     ./go-sqlite3 \
     ./gorm-sqlite \
-    ./mmap-go \
     ./xdg \
     ./continuity \
     ./go-mtree \
-    ./termenv \
     ./containerd \
     ./go-git \
+    ./moby-sys/user \
+    ./diskfs \
+    ./gguf-parser \
     ./grype
 
   cd grype
@@ -207,11 +210,12 @@ zopen_clean()
     ../zos-wrappers \
     ../go-sqlite3 \
     ../gorm-sqlite \
-    ../mmap-go \
     ../xdg \
     ../continuity \
     ../go-mtree \
-    ../termenv \
     ../containerd \
-    ../go-git
+    ../go-git \
+    ../moby-sys \
+    ../diskfs \
+    ../gguf-parser
 }
