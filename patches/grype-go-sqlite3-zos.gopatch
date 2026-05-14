@@ -4,7 +4,7 @@ index ed2a9e2..bf18973 100644
 +++ b/sqlite3.go
 @@ -10,6 +10,7 @@
  package sqlite3
- 
+
  /*
 +#cgo zos LDFLAGS: ZOPEN-REPLACE-DIR/sqlite3-binding.x
  #cgo CFLAGS: -std=gnu99

@@ -1,20 +1,20 @@
-diff --git c/cmd/grype/main.go w/cmd/grype/main.go
-index f3f1136..9e2d577 100644
---- c/cmd/grype/main.go
-+++ w/cmd/grype/main.go
+diff --git a/cmd/grype/main.go b/cmd/grype/main.go
+index 0000000..0000000 100644
+--- a/cmd/grype/main.go
++++ b/cmd/grype/main.go
 @@ -1,7 +1,7 @@
  package main
- 
+
  import (
 -	_ "github.com/glebarez/sqlite"
 +	_ "github.com/mattn/go-sqlite3"
- 
+
  	"github.com/anchore/clio"
  	"github.com/anchore/grype/cmd/grype/cli"
-diff --git c/go.mod w/go.mod
-index 11d4c30..d227b9b 100644
---- c/go.mod
-+++ w/go.mod
+diff --git a/go.mod b/go.mod
+index 0000000..0000000 100644
+--- a/go.mod
++++ b/go.mod
 @@ -25,7 +25,8 @@ require (
  	github.com/facebookincubator/nvdtools v0.1.5
  	github.com/gabriel-vasile/mimetype v1.4.5
@@ -25,81 +25,82 @@ index 11d4c30..d227b9b 100644
  	github.com/go-test/deep v1.1.1
  	github.com/google/go-cmp v0.6.0
  	github.com/google/go-containerregistry v0.20.2
-diff --git c/grype/db/internal/gormadapter/open.go w/grype/db/internal/gormadapter/open.go
-index 6448dad..f65008a 100644
---- c/grype/db/internal/gormadapter/open.go
-+++ w/grype/db/internal/gormadapter/open.go
+diff --git a/grype/db/internal/gormadapter/open.go b/grype/db/internal/gormadapter/open.go
+index 0000000..0000000 100644
+--- a/grype/db/internal/gormadapter/open.go
++++ b/grype/db/internal/gormadapter/open.go
 @@ -4,7 +4,7 @@ import (
  	"fmt"
  	"os"
- 
+
 -	"github.com/glebarez/sqlite"
 +	"gorm.io/driver/sqlite"
  	"gorm.io/gorm"
  )
- 
-diff --git c/grype/db/v1/store/store.go w/grype/db/v1/store/store.go
-index 9b22bc8..5ca50c5 100644
---- c/grype/db/v1/store/store.go
-+++ w/grype/db/v1/store/store.go
+
+diff --git a/grype/db/v1/store/store.go b/grype/db/v1/store/store.go
+index 0000000..0000000 100644
+--- a/grype/db/v1/store/store.go
++++ b/grype/db/v1/store/store.go
 @@ -4,7 +4,7 @@ import (
  	"fmt"
  	"sort"
- 
+
 -	_ "github.com/glebarez/sqlite" // provide the sqlite dialect to gorm via import
 +	_ "github.com/mattn/go-sqlite3" // provide the sqlite dialect to gorm via import
  	"github.com/go-test/deep"
  	"gorm.io/gorm"
- 
-diff --git c/grype/db/v2/store/store.go w/grype/db/v2/store/store.go
-index ee5a313..2ef6cc1 100644
---- c/grype/db/v2/store/store.go
-+++ w/grype/db/v2/store/store.go
+
+diff --git a/grype/db/v2/store/store.go b/grype/db/v2/store/store.go
+index 0000000..0000000 100644
+--- a/grype/db/v2/store/store.go
++++ b/grype/db/v2/store/store.go
 @@ -4,7 +4,7 @@ import (
  	"fmt"
  	"sort"
- 
+
 -	_ "github.com/glebarez/sqlite" // provide the sqlite dialect to gorm via import
 +	_ "github.com/mattn/go-sqlite3" // provide the sqlite dialect to gorm via import
  	"github.com/go-test/deep"
  	"gorm.io/gorm"
- 
-diff --git c/grype/db/v3/store/store.go w/grype/db/v3/store/store.go
-index 8643ac4..31ca267 100644
---- c/grype/db/v3/store/store.go
-+++ w/grype/db/v3/store/store.go
+
+diff --git a/grype/db/v3/store/store.go b/grype/db/v3/store/store.go
+index 0000000..0000000 100644
+--- a/grype/db/v3/store/store.go
++++ b/grype/db/v3/store/store.go
 @@ -4,7 +4,7 @@ import (
  	"fmt"
  	"sort"
- 
+
 -	_ "github.com/glebarez/sqlite" // provide the sqlite dialect to gorm via import
 +	_ "github.com/mattn/go-sqlite3" // provide the sqlite dialect to gorm via import
  	"github.com/go-test/deep"
  	"gorm.io/gorm"
- 
-diff --git c/grype/db/v4/store/store.go w/grype/db/v4/store/store.go
-index bcdb1ac..d141ca0 100644
---- c/grype/db/v4/store/store.go
-+++ w/grype/db/v4/store/store.go
+
+diff --git a/grype/db/v4/store/store.go b/grype/db/v4/store/store.go
+index 0000000..0000000 100644
+--- a/grype/db/v4/store/store.go
++++ b/grype/db/v4/store/store.go
 @@ -4,7 +4,7 @@ import (
  	"fmt"
  	"sort"
- 
+
 -	_ "github.com/glebarez/sqlite" // provide the sqlite dialect to gorm via import
 +	_ "github.com/mattn/go-sqlite3" // provide the sqlite dialect to gorm via import
  	"github.com/go-test/deep"
  	"gorm.io/gorm"
- 
-diff --git c/grype/db/v5/store/store.go w/grype/db/v5/store/store.go
-index 3c7696a..7368a71 100644
---- c/grype/db/v5/store/store.go
-+++ w/grype/db/v5/store/store.go
-@@ -4,7 +4,7 @@ import (
+
+diff --git a/grype/db/v5/store/store.go b/grype/db/v5/store/store.go
+index 0000000..0000000 100644
+--- a/grype/db/v5/store/store.go
++++ b/grype/db/v5/store/store.go
+@@ -4,7 +4,7 @@
  	"fmt"
  	"sort"
- 
+
 -	_ "github.com/glebarez/sqlite" // provide the sqlite dialect to gorm via import
 +	_ "github.com/mattn/go-sqlite3" // provide the sqlite dialect to gorm via import
  	"github.com/go-test/deep"
  	"gorm.io/gorm"
- 
+
+

@@ -14,8 +14,8 @@ index 0000000..0000000
 +	"time"
 +)
 +
-+// lchtimes changes the access and modification times of a file, without following symlinks
-+// z/OS doesn't have a native lchtimes, so we fall back to regular utimes
++// lchtimes changes the access and modification times of a file, without following symlinks.
++// z/OS lacks a native lchtimes, so we fall back to regular utimes.
 +func lchtimes(name string, atime, mtime time.Time) error {
 +	return syscall.Utimes(name, []syscall.Timeval{
 +		{Sec: atime.Unix()}, {Sec: mtime.Unix()},

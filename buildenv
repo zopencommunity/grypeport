@@ -5,81 +5,113 @@ GRYPE_VERSION="0.80.0"
 ### Build control file for the grype port
 ###
 
-###
-### Required Environment Variables
-###
+export ZOPEN_NAME="grype"
 export ZOPEN_PROJECT_NAME="grype"
 export ZOPEN_BUILD_LINE="STABLE"
 export ZOPEN_STABLE_URL="https://github.com/anchore/grype.git"
-export ZOPEN_STABLE_TAG="v0.80.0"
-export ZOPEN_STABLE_DEPS="make coreutils check_go check_clang sqlite"
+export ZOPEN_STABLE_TAG="v${GRYPE_VERSION}"
+export ZOPEN_STABLE_DEPS="make coreutils git sqlite check_clang check_go"
+
 export ZOPEN_DEV_URL=""
-export ZOPEN_DEV_DEPS="check_go"
+export ZOPEN_DEV_DEPS=""
+
 export ZOPEN_CATEGORIES="security devops"
 export ZOPEN_RUNTIME_DEPS=""
-# export ZOPEN_SYSTEM_PREREQ="zos25" # optional system pre-req (default=zos25)
+export ZOPEN_SYSTEM_PREREQ=""
 
-
-###
-### Build settings (Port type: BUILD, Build system: Go)
-###
-### Settings for Go build system
-export ZOPEN_COMP=GO
+export ZOPEN_COMP="GO"
 export ZOPEN_CONFIGURE="zopen_config"
 export ZOPEN_CONFIGURE_MINIMAL=1
 export ZOPEN_MAKE="skip"
-export ZOPEN_CHECK="skip"
 export ZOPEN_INSTALL="zopen_install"
+export ZOPEN_CHECK="skip"
 export ZOPEN_CLEAN="zopen_clean"
 
+zopen_init()
+{
+  # zopen-build calls zopen_init from ZOPEN_ROOT/grype (the source checkout).
+  # Go one level up to PORT_ROOT (the workspace root that will hold go.work and
+  # the sibling module checkouts).
+  export CGO_ENABLED=1
+  export GOMAXPROCS=1
+  export CC="${CC:-clang}"
+  export GOPATH="$(cd .. && pwd)/go-path"
+  export GOMODCACHE="${GOPATH}/pkg/mod"
+  export GOTMPDIR="$(dirname "${GOPATH}")/go-tmpdir"
+  mkdir -p "${GOTMPDIR}" "${GOMODCACHE}"
 
-###
-### Required user-supplied functions
-###
+  if [ -n "${GOROOT:-}" ] && [ -d "${GOROOT}/bin" ]; then
+    export PATH="${PATH}:${GOROOT}/bin"
+  fi
 
-zopen_check_results() {
+  export GOBIN="${ZOPEN_INSTALL_DIR}/bin"
+  mkdir -p "${GOBIN}"
+}
+
+clone_module()
+{
+  repo="$1"
+  dir="$2"
+  ref="$3"
+
+  if [ ! -d "${dir}/.git" ]; then
+    git clone "${repo}" "${dir}"
+  fi
+
+  git -C "${dir}" fetch --tags --force
+  git -C "${dir}" checkout --force "${ref}"
+  git -C "${dir}" clean -fdx
+}
+
+apply_port_patch()
+{
   dir="$1"
-  pfx="$2"
-  chk="$1/$2_check.log"
-  # Add logic to extract the test results here:
-  echo "actualFailures:0"
-  echo "totalTests:1"
-  echo "expectedFailures:0"
-  echo "expectedTotalTests:1"
+  patch="$2"
+
+  if ! git -C "${dir}" apply --check "../patches/${patch}"; then
+    echo "Patch ${patch} did not apply cleanly in ${dir}; assuming it was already applied or needs refresh."
+    git -C "${dir}" apply --reverse --check "../patches/${patch}" >/dev/null 2>&1 || return 1
+    return 0
+  fi
+
+  git -C "${dir}" apply "../patches/${patch}"
 }
 
-zopen_get_version() {
-  echo "$GRYPE_VERSION"
-}
+zopen_config()
+{
+  cd ..
 
+  clone_module "${ZOPEN_STABLE_URL}" grype "v${GRYPE_VERSION}"
+  clone_module https://github.com/mattn/go-sqlite3.git go-sqlite3 v1.14.22
+  clone_module https://github.com/go-gorm/sqlite.git gorm-sqlite v1.5.6
+  clone_module https://github.com/edsrzf/mmap-go.git mmap-go v1.1.0
+  clone_module https://github.com/adrg/xdg.git xdg v0.5.0
+  clone_module https://github.com/containerd/continuity.git continuity v0.4.2
+  clone_module https://github.com/vbatts/go-mtree.git go-mtree v0.5.4
+  clone_module https://github.com/muesli/termenv.git termenv v0.15.2
+  clone_module https://github.com/containerd/containerd.git containerd v1.7.11
+  clone_module https://github.com/go-git/go-git.git go-git v5.12.0
 
-###
-### Custom Build Logic (if applicable)
-###
-zopen_init() {
-  # Enable CGO without explicit CC/CXX - let Go use its defaults
-  export CGO_ENABLED=1
-  # Use absolute path for GOTMPDIR to avoid issues when changing directories
-  export GOTMPDIR=$(pwd)/gotmp
-  mkdir -p $GOTMPDIR
-  # Ensure GOROOT/bin is first in PATH to avoid version mismatch
-  export PATH=$GOROOT/bin:$PATH
-  # Use patched Go toolchain (grafana-style workaround for z/OS CGO linking)
-  export PATH=$PATH:$GOROOT/go-build-zos/bin
-}
+  apply_port_patch go-sqlite3 grype-go-sqlite3-zos.gopatch || return 1
+  apply_port_patch mmap-go grype-mmap-go-zos.gopatch || return 1
+  apply_port_patch xdg grype-xdg-zos.gopatch || return 1
+  apply_port_patch continuity grype-continuity-zos.gopatch || return 1
+  apply_port_patch go-mtree grype-go-mtree-zos.gopatch || return 1
+  apply_port_patch termenv grype-termenv-zos.gopatch || return 1
+  apply_port_patch containerd grype-containerd-zos.gopatch || return 1
+  apply_port_patch go-git grype-go-git-zos.gopatch || return 1
+  apply_port_patch grype grype-sqlite3-driver.gopatch || return 1
 
-zopen_config() {
-  # Ensure CGO is enabled for config processing (let Go detect compiler)
-  export CGO_ENABLED=1
-  
-  # We're already in grypeport directory, no need to cd ..
-  rm -rf go.work
+  # Create a goz-util wrapper that converts binder rc=4 (warnings-only) to rc=0.
+  if [ -n "${GOROOT:-}" ] && [ -f "${GOROOT}/bin/goz-util" ]; then
+    mkdir -p "zos-wrappers"
+    printf '#!/bin/sh\n"%s" "$@"\nrc=$?\n[ $rc -eq 4 ] && rc=0\nexit $rc\n' \
+      "${GOROOT}/bin/goz-util" > "zos-wrappers/goz-util"
+    chmod +x "zos-wrappers/goz-util"
+    export PATH="$(pwd)/zos-wrappers:${PATH}"
+  fi
 
-  # Pre-build go-sqlite3 as shared library (Grafana approach)
-  rm -rf go-sqlite3
-  git clone https://github.com/mattn/go-sqlite3.git
   cd go-sqlite3
-  # Build the DLL for go-sqlite3
   clang -shared -fvisibility=default -o sqlite3-binding.so sqlite3-binding.c \
     -DPATH_MAX=1023 \
     -D_AE_BIMODAL=1 \
@@ -103,437 +135,83 @@ zopen_config() {
     -fzos-le-char-mode=ascii \
     -isystem/usr/include \
     -m64
-  chtag -tc1047 sqlite3-binding.x
-  mv ./sqlite3-binding.c ./sqlite3-binding.c.ignore
-  
-  # Patch sqlite3.go to use the pre-built side deck (Grafana approach)
-  GO_SQLITE3_DIR=$(pwd)
-  # Insert z/OS CGO directives after the openbsd LDFLAGS line
-  # Use the side deck file directly - Go will handle the linking
-  sed -i '/^#cgo openbsd LDFLAGS:/a\
-#cgo zos LDFLAGS: ZOPEN-REPLACE-DIR/sqlite3-binding.x' sqlite3.go
+  mv -f sqlite3-binding.c sqlite3-binding.c.ignore
+
+  GO_SQLITE3_DIR="$(pwd)"
   sed -i "s#ZOPEN-REPLACE-DIR#${GO_SQLITE3_DIR}#g" sqlite3.go
+
   cd ..
+  rm -f go.work go.work.sum
+  mkdir -p "${GOTMPDIR}"
+  go work init \
+    ./go-sqlite3 \
+    ./gorm-sqlite \
+    ./mmap-go \
+    ./xdg \
+    ./continuity \
+    ./go-mtree \
+    ./termenv \
+    ./containerd \
+    ./go-git \
+    ./grype
 
-  # Clone and patch mmap-go
-  rm -rf mmap-go
-  git clone https://github.com/edsrzf/mmap-go.git
-  cd mmap-go
-  # Patch mmap_unix.go to add zos build tag
-  sed -i 's/+build darwin dragonfly freebsd linux openbsd solaris netbsd aix/+build darwin dragonfly freebsd linux openbsd solaris netbsd aix zos/' mmap_unix.go
-  cd ..
-
-  # Clone and create z/OS-specific files for xdg
-  rm -rf xdg
-  git clone https://github.com/adrg/xdg.git
-  cd xdg
-  # Create pathutil_zos.go
-  cat > internal/pathutil/pathutil_zos.go << 'XDGEOF1'
-//go:build zos
-// +build zos
-
-package pathutil
-
-import (
-	"errors"
-	"io/fs"
-	"os"
-	"path/filepath"
-	"strings"
-)
-
-func UserHomeDir() string {
-	if home := os.Getenv("HOME"); home != "" {
-		return home
-	}
-	return "/"
-}
-
-func Exists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil || errors.Is(err, fs.ErrExist)
-}
-
-func ExpandHome(path string) string {
-	home := UserHomeDir()
-	if path == "" || home == "" {
-		return path
-	}
-	if path[0] == '~' {
-		return filepath.Join(home, path[1:])
-	}
-	if strings.HasPrefix(path, "$HOME") {
-		return filepath.Join(home, path[5:])
-	}
-	return path
-}
-XDGEOF1
-  # Create paths_zos.go
-  cat > paths_zos.go << 'XDGEOF2'
-//go:build zos
-// +build zos
-
-package xdg
-
-import (
-	"path/filepath"
-	"github.com/adrg/xdg/internal/pathutil"
-	"github.com/adrg/xdg/internal/userdirs"
-)
-
-func initDirs(home string) {
-	initBaseDirs(home)
-	initUserDirs(home)
-}
-
-func initBaseDirs(home string) {
-	homeAppSupport := filepath.Join(home, ".local", "share")
-	rootAppSupport := "/usr/local/share"
-	baseDirs.dataHome = pathutil.EnvPath(envDataHome, homeAppSupport)
-	baseDirs.data = pathutil.EnvPathList(envDataDirs, rootAppSupport)
-	baseDirs.configHome = pathutil.EnvPath(envConfigHome, filepath.Join(home, ".config"))
-	baseDirs.config = pathutil.EnvPathList(envConfigDirs, "/etc/xdg")
-	baseDirs.cacheHome = pathutil.EnvPath(envCacheHome, filepath.Join(home, ".cache"))
-	baseDirs.runtime = pathutil.EnvPath(envRuntimeDir, "/tmp")
-	baseDirs.stateHome = pathutil.EnvPath(envStateHome, filepath.Join(home, ".local", "state"))
-	baseDirs.applications = []string{
-		filepath.Join(baseDirs.dataHome, "applications"),
-		filepath.Join(rootAppSupport, "applications"),
-	}
-	baseDirs.fonts = []string{
-		filepath.Join(baseDirs.dataHome, "fonts"),
-		filepath.Join(home, ".fonts"),
-		filepath.Join(rootAppSupport, "fonts"),
-		"/usr/share/fonts",
-	}
-}
-
-func initUserDirs(home string) {
-	UserDirs.Desktop = pathutil.EnvPath(userdirs.EnvDesktopDir, filepath.Join(home, "Desktop"))
-	UserDirs.Download = pathutil.EnvPath(userdirs.EnvDownloadDir, filepath.Join(home, "Downloads"))
-	UserDirs.Documents = pathutil.EnvPath(userdirs.EnvDocumentsDir, filepath.Join(home, "Documents"))
-	UserDirs.Music = pathutil.EnvPath(userdirs.EnvMusicDir, filepath.Join(home, "Music"))
-	UserDirs.Pictures = pathutil.EnvPath(userdirs.EnvPicturesDir, filepath.Join(home, "Pictures"))
-	UserDirs.Videos = pathutil.EnvPath(userdirs.EnvVideosDir, filepath.Join(home, "Videos"))
-	UserDirs.Templates = pathutil.EnvPath(userdirs.EnvTemplatesDir, filepath.Join(home, "Templates"))
-	UserDirs.PublicShare = pathutil.EnvPath(userdirs.EnvPublicShareDir, filepath.Join(home, "Public"))
-}
-XDGEOF2
-  cd ..
-
-  # Clone and create z/OS-specific files for continuity
-  rm -rf continuity
-  git clone https://github.com/containerd/continuity.git
-  cd continuity
-  # Patch copy_unix.go build tag
-  sed -i 's/\/\/go:build darwin || freebsd || openbsd || netbsd || dragonfly || solaris/\/\/go:build darwin || freebsd || openbsd || netbsd || dragonfly || solaris || zos/' fs/copy_unix.go
-  # Patch copy_irregular_unix.go build tag
-  sed -i 's/\/\/go:build !windows && !freebsd/\/\/go:build !windows \&\& !freebsd \&\& !zos/' fs/copy_irregular_unix.go
-  # Create copy_irregular_zos.go
-  cat > fs/copy_irregular_zos.go << 'CONTEOF1'
-//go:build zos
-
-package fs
-
-import "os"
-
-func copyIrregular(dst string, fi os.FileInfo) error {
-	return nil
-}
-CONTEOF1
-  # Create stat_zos.go
-  cat > fs/stat_zos.go << 'CONTEOF2'
-//go:build zos
-
-package fs
-
-import (
-	"fmt"
-	"io/fs"
-	"syscall"
-	"time"
-)
-
-func Atime(st fs.FileInfo) (time.Time, error) {
-	stSys, ok := st.Sys().(*syscall.Stat_t)
-	if !ok {
-		return time.Time{}, fmt.Errorf("expected st.Sys() to be *syscall.Stat_t, got %T", st.Sys())
-	}
-	return time.Unix(stSys.Atim.Sec, stSys.Atim.Nsec), nil
-}
-
-func Ctime(st fs.FileInfo) (time.Time, error) {
-	stSys, ok := st.Sys().(*syscall.Stat_t)
-	if !ok {
-		return time.Time{}, fmt.Errorf("expected st.Sys() to be *syscall.Stat_t, got %T", st.Sys())
-	}
-	return time.Unix(stSys.Ctim.Sec, stSys.Ctim.Nsec), nil
-}
-
-func Mtime(st fs.FileInfo) (time.Time, error) {
-	stSys, ok := st.Sys().(*syscall.Stat_t)
-	if !ok {
-		return time.Time{}, fmt.Errorf("expected st.Sys() to be *syscall.Stat_t, got %T", st.Sys())
-	}
-	return time.Unix(stSys.Mtim.Sec, stSys.Mtim.Nsec), nil
-}
-
-func StatAtime(st *syscall.Stat_t) syscall.Timespec {
-	return st.Atim
-}
-
-func StatCtime(st *syscall.Stat_t) syscall.Timespec {
-	return st.Ctim
-}
-
-func StatMtime(st *syscall.Stat_t) syscall.Timespec {
-	return st.Mtim
-}
-
-func StatATimeAsTime(st *syscall.Stat_t) time.Time {
-	return time.Unix(st.Atim.Sec, st.Atim.Nsec)
-}
-CONTEOF2
-  cd ..
-
-  # Clone and create z/OS-specific files for go-mtree
-  rm -rf go-mtree
-  git clone https://github.com/vbatts/go-mtree.git
-  cd go-mtree
-  cat > lchtimes_zos.go << 'MTREEEOF'
-//go:build zos
-// +build zos
-
-package mtree
-
-import (
-	"syscall"
-	"time"
-)
-
-func lchtimes(name string, atime, mtime time.Time) error {
-	return syscall.Utimes(name, []syscall.Timeval{
-		{Sec: atime.Unix()}, {Sec: mtime.Unix()},
-	})
-}
-MTREEEOF
-  cd ..
-
-  # Clone and create z/OS-specific files for termenv
-  rm -rf termenv
-  git clone https://github.com/muesli/termenv.git
-  cd termenv
-  cat > termenv_zos.go << 'TERMEOF'
-//go:build zos
-// +build zos
-
-package termenv
-
-import "os"
-
-func colorProfile() Profile {
-	term := os.Getenv("TERM")
-	colorTerm := os.Getenv("COLORTERM")
-	switch colorTerm {
-	case "truecolor", "24bit", "24-bit":
-		if term != "screen" && term != "tmux" {
-			return TrueColor
-		}
-	}
-	switch term {
-	case "xterm-256color", "screen-256color", "tmux-256color":
-		return ANSI256
-	case "xterm", "screen", "tmux":
-		return ANSI
-	}
-	return Ascii
-}
-
-func foregroundColor() Color {
-	return ANSIColor(7)
-}
-
-func backgroundColor() Color {
-	return ANSIColor(0)
-}
-
-func enableVirtualTerminalProcessing(f *os.File) error {
-	return nil
-}
-TERMEOF
-  cd ..
-
-  # Clone containerd v1.7.11 (matches grype's dependency) and create z/OS-specific mount stubs
-  rm -rf containerd
-  git clone --branch v1.7.11 --depth 1 https://github.com/containerd/containerd.git
-  cd containerd
-  cat > mount/mount_zos.go << 'CONTDEOF'
-//go:build zos
-
-package mount
-
-import "errors"
-
-var ErrNotImplementOnZOS = errors.New("not implemented on z/OS")
-
-func (m *Mount) mount(target string) error {
-	return ErrNotImplementOnZOS
-}
-
-func Unmount(mount string, flags int) error {
-	return ErrNotImplementOnZOS
-}
-
-func UnmountAll(mount string, flags int) error {
-	return ErrNotImplementOnZOS
-}
-
-func UnmountRecursive(mount string, flags int) error {
-	return ErrNotImplementOnZOS
-}
-CONTDEOF
-  cd ..
-
-  # Clone and patch go-git (v5 branch to match grype's dependency)
-  rm -rf go-git
-  git clone --branch v5.12.0 --depth 1 https://github.com/go-git/go-git.git
-  cd go-git
-  # Create z/OS-specific file for isSymlinkWindowsNonAdmin
-  cat > worktree_zos.go << 'EOF'
-//go:build zos
-
-package git
-
-func isSymlinkWindowsNonAdmin(err error) bool {
-	return false
-}
-EOF
-  cd ..
-
-  # Don't clone go-sqlite3 - let Go fetch it naturally with CGO enabled during build
-  # This avoids wharf trying to process C source files
-  
-  # Add replace directives to grype/go.mod for z/OS patched dependencies
-  # This must happen AFTER dependencies are cloned above
   cd grype
-  go mod edit -replace github.com/mattn/go-sqlite3=../go-sqlite3
-  go mod edit -replace github.com/edsrzf/mmap-go=../mmap-go
-  go mod edit -replace github.com/adrg/xdg=../xdg
-  go mod edit -replace github.com/containerd/continuity=../continuity
-  go mod edit -replace github.com/vbatts/go-mtree=../go-mtree
-  go mod edit -replace github.com/muesli/termenv=../termenv
-  go mod edit -replace github.com/containerd/containerd=../containerd
-  go mod edit -replace github.com/go-git/go-git/v5=../go-git
-  
-  # Don't run go mod tidy here - it causes OOM on z/OS
-  # Dependencies will be resolved during build in zopen_install
-  # Stay in grype directory for zopen_install (like grafana example)
+  mkdir -p "${GOTMPDIR}"
+  go mod download
+  cd ..
 }
 
-zopen_install() {
-  # Create install directories
-  mkdir -p "${ZOPEN_INSTALL_DIR}/lib"
-  mkdir -p "${ZOPEN_INSTALL_DIR}/bin"
-  
-  # Copy pre-built sqlite3 shared library
-  mv ../go-sqlite3/sqlite3-binding.so "${ZOPEN_INSTALL_DIR}/lib/sqlite3-binding.so"
-  
-  # Build grype binary with limited parallelism to avoid OOM on z/OS
-  # CGO builds require more memory, so we limit parallel compilation
-  export GOMAXPROCS=1
-  export CGO_ENABLED=1
-  # We're already in grype directory from zopen_wharf
-  echo "Building with CGO_ENABLED=$CGO_ENABLED in $(pwd)"
-  go build -v -p 1 -o grype-bin ./cmd/grype
-  
-  # Verify the binary was built with CGO
-  if [ -f grype-bin ]; then
-    echo "Binary built successfully"
-    ./grype-bin version | grep -i "go-sqlite3" || echo "Warning: Binary may not have CGO support"
-  else
-    echo "ERROR: grype-bin not found after build"
-    return 1
+zopen_install()
+{
+  # GOPATH is exported by zopen_init as PORT_ROOT/go-path.
+  # cd to PORT_ROOT (workspace root containing go.work and sibling module dirs)
+  # regardless of what directory zopen called us from.
+  cd "$(dirname "${GOPATH}")"
+
+  if [ -n "${GOROOT:-}" ] && [ -f "${GOROOT}/bin/goz-util" ]; then
+    mkdir -p "zos-wrappers"
+    printf '#!/bin/sh\n"%s" "$@"\nrc=$?\n[ $rc -eq 4 ] && rc=0\nexit $rc\n' \
+      "${GOROOT}/bin/goz-util" > "zos-wrappers/goz-util"
+    chmod +x "zos-wrappers/goz-util"
+    export PATH="$(pwd)/zos-wrappers:${PATH}"
   fi
-  
-  # Copy the built binary to the install directory
-  cp grype-bin "${ZOPEN_INSTALL_DIR}/bin/grype"
+
+  mkdir -p "${ZOPEN_INSTALL_DIR}/lib" "${GOBIN}" "${GOTMPDIR}"
+  cp go-sqlite3/sqlite3-binding.so "${ZOPEN_INSTALL_DIR}/lib/"
+  CGO_LDFLAGS_ALLOW='^((?:[^/]*/)*)(.*)\.x$' \
+    go build -buildvcs=false \
+      -ldflags="-s -w -X=main.version=${GRYPE_VERSION} -X=github.com/mattn/go-sqlite3.driverName=sqlite" \
+      -o "${GOBIN}/grype" \
+      ./grype/cmd/grype
 }
 
-zopen_clean() {
-  # Clean up cloned dependencies and build artifacts
-  cd ..
-  rm -rf .wharf_cache wharf_port
-  rm -rf mmap-go xdg continuity go-mtree termenv containerd
-  cd grype
-  # Remove replace directives from go.mod
-  go mod edit -dropreplace github.com/edsrzf/mmap-go
-  go mod edit -dropreplace github.com/adrg/xdg
-  go mod edit -dropreplace github.com/containerd/continuity
-  go mod edit -dropreplace github.com/vbatts/go-mtree
-  go mod edit -dropreplace github.com/muesli/termenv
-  go mod edit -dropreplace github.com/containerd/containerd
-  go mod edit -dropreplace github.com/go-git/go-git/v5
-  cd ..
+zopen_check_results()
+{
+  echo "actualFailures:0"
+  echo "totalTests:1"
+  echo "expectedFailures:0"
+  echo "expectedTotalTests:1"
 }
 
-###
-### Optional User-Supplied Hooks (uncomment to use)
-###
+zopen_get_version()
+{
+  echo "${GRYPE_VERSION}"
+}
 
-#zopen_append_to_env() {
-#  ## This function runs as part of generation of the .env file. The output of the
-#  ## function is appended to .env.
-#}
-#
-#zopen_append_to_setup(){
-#  ## This function runs as part of generation of the setup.sh file. The output of
-#  ## the function is appended to setup.sh.
-#}
-#
-#zopen_append_to_validate_install(){
-#  ## This function runs as part of generation of the install_test.sh file. The
-#  ## output of the function is appended to install_test.sh script.
-#}
-#
-#zopen_install_caveats(){
-#  ## This function is run post install. All stdout messages are captured and
-#  ## added to the metadata.json as installation caveats.
-#}
-#
-#zopen_init(){
-#  ## This function runs after code is downloaded and patched but before the code
-#  ## is built.
-#}
-#
-#zopen_post_buildenv(){
-#  ## This function runs after the 'buildenv' is processed.
-#}
-#
-#zopen_pre_build(){
-#  ## This function runs before the 'make' step of the build is run.
-#}
-#
-#zopen_pre_check(){
-#  ## This function runs before the 'check' step of the build is run.
-#}
-#
-#zopen_pre_configure(){
-#  ## This function runs before the 'configure' step of the build is run.
-#}
-#
-#zopen_pre_install(){
-#  ## This function runs before the 'install' step of the build is run.
-#}
-#
-#zopen_post_install(){
-#  ## This function runs after the 'install' step of the build is run.
-#}
-#
-#zopen_pre_patch(){
-#  ## This function runs before the 'patch' step of the build is run.
-#}
-#
-#zopen_pre_terminate(){
-#  ## This function runs before 'zopen build' terminates.
-#}
-
+zopen_clean()
+{
+  rm -rf \
+    ../go.work \
+    ../go.work.sum \
+    ../go-tmpdir \
+    ../zos-wrappers \
+    ../go-sqlite3 \
+    ../gorm-sqlite \
+    ../mmap-go \
+    ../xdg \
+    ../continuity \
+    ../go-mtree \
+    ../termenv \
+    ../containerd \
+    ../go-git
+}

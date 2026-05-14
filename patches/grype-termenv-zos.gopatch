@@ -3,17 +3,18 @@ new file mode 100644
 index 0000000..0000000
 --- /dev/null
 +++ b/termenv_zos.go
-@@ -0,0 +1,45 @@
+@@ -0,0 +1,41 @@
 +//go:build zos
 +// +build zos
 +
 +package termenv
 +
 +import (
++	"io"
 +	"os"
 +)
 +
-+func colorProfile() Profile {
++func (o *Output) ColorProfile() Profile {
 +	term := os.Getenv("TERM")
 +	colorTerm := os.Getenv("COLORTERM")
 +
@@ -34,18 +35,16 @@ index 0000000..0000000
 +	return Ascii
 +}
 +
-+func foregroundColor() Color {
-+	// z/OS terminal foreground color detection
-+	// Default to white if we can't detect
-+	return ANSIColor(7) // White
++func (o Output) foregroundColor() Color {
++	// default gray
++	return ANSIColor(7)
 +}
 +
-+func backgroundColor() Color {
-+	// z/OS terminal background color detection
-+	// Default to black if we can't detect
-+	return ANSIColor(0) // Black
++func (o Output) backgroundColor() Color {
++	// default black
++	return ANSIColor(0)
 +}
 +
-+func enableVirtualTerminalProcessing(f *os.File) error {
-+	return nil
++func EnableVirtualTerminalProcessing(_ io.Writer) (func() error, error) {
++	return func() error { return nil }, nil
 +}
