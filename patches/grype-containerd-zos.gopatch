@@ -3,7 +3,7 @@ new file mode 100644
 index 0000000..0000000
 --- /dev/null
 +++ b/mount/mount_zos.go
-@@ -0,0 +1,48 @@
+@@ -0,0 +1,46 @@
 +//go:build zos
 +
 +/*
