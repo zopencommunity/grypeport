@@ -183,7 +183,7 @@ zopen_install()
   cp go-sqlite3/sqlite3-binding.so "${ZOPEN_INSTALL_DIR}/lib/"
   CGO_LDFLAGS_ALLOW='^((?:[^/]*/)*)(.*)\.x$' \
     go build -buildvcs=false \
-      -ldflags="-s -w -X=main.version=${GRYPE_VERSION} -X=github.com/mattn/go-sqlite3.driverName=sqlite" \
+      -ldflags="-s -w -X=main.version=${GRYPE_VERSION}" \
       -o "${GOBIN}/grype" \
       ./grype/cmd/grype
 }
