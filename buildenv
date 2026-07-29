@@ -1,5 +1,5 @@
 # bump: grype-version /GRYPE_VERSION="(.*)"/ https://github.com/anchore/grype.git|semver:*
-GRYPE_VERSION="0.112.0"
+GRYPE_VERSION="0.116.1"
 
 ###
 ### Build control file for the grype port
